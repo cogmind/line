@@ -1,6 +1,13 @@
+#!/usr/bin/env python3
+# Make it run in py3
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+# Integer division may result in null if not run with Python >3.0
 
-''' Document as much as possible. Keep it small and simple.
 
+
+''' Analysis of Behavioral Data
 
 Example input file (Line breaks represent CSV)
 
@@ -28,114 +35,135 @@ Example input file (Line breaks represent CSV)
 '''
 
 import numpy as np
+import numpy.ma as ma
+import pandas as pd
+
 import inspect
-from enum import Enum #  Requires Python 3.4
 from os import path
 
-# Simple Data Types
-#dt_int = np.dtype(int)
-#dt_sint = np.dtype(np.signedinteger)
-#dt_byte = np.dtype('u1')
-#dt_double = np.dtype('d')
-#dt_float = np.dtype(np.number)
-#dt_string = np.dtype(np.character)
-#dt_str = np.dtype(str) # String array
-#dt_str1 = np.dtype('a1') # A 1-character string
-#dt_str2 = np.dtype('a2') # A 2-character string
-#dt_date = np.dtype('M')
-#dt_bool = np.dtype('b')
-#dt_delta_t = np.dtype('m')
-#dt_date = np.dtype('U') # unicode
-#'dt_pyobj = np.dtype(object)
+# Experiment Configuration
+items = [2, 3, 4, 5]
 
-
-
-# Complex Data Types
-
-# Objects of variable lengths
-#dt_coordinates = np.dtype('O')  # Treat tuple of rand(n) arrays as a Python object
-#dt_colors = np.dtype('O') 
-
-# Define the data types
-# This ordered header and type_field must correspond to the Data class (and the file input)
-# TODO WARNING Notice the error of the header versus example below ---- colors versus coordinates
-header = ['ID', 'Age', 'Gender', 'Session', 'Trial', 'Contrast', 'Items', 'Match', 'Cue', 'RT', 'Response', 'SOA', 'MemCoord', 'MemColor', 'TestColor'] # SIC!!! TODO Debuggable.
-#type_field = [dt_int, dt_byte, dt_str1, dt_string, dt_int, dt_str2, dt_byte, dt_str, dt_str, dt_double, dt_string, dt_int, dt_colors, dt_coordinates, dt_colors]
-
-''' Don't know if I need this enum
-class Data(Enum):
-	ID = 1
-	AGE = 2
-	GENDER = 3
-	SESSION = 4
-	TRIAL = 5
-	CONTRAST = 6
-	ITEMS = 7
-	MATCH = 8
-	CUE = 9
-	RT = 10
-	RESPONSE = 11
-	SOA = 12
-	MEMCOORD = 13 #  SIC
-	MEMCOLOR = 14 #  SIC
-	TESTCOLOR = 15 #  SIC
-'''
-
-# Format Header
-# Parameter style: [(field_name, field_dtype, field_shape), ...]. Shape omitted
-# does not work
-#dt_header = np.dtype(zip(len(header) * [dt_str], header))
-
-#def map_type(name, type):
-#	return {str(name): type}
-#dt_fields = np.dtype([map_type(d, type_field) for d in Data])
-
-#TMAP = dict.fromkeys([d for d in header], type_field)
-
-# Format the main fields of the CSV file
-#TMAP  = zip(header, type_field) #  Generate an iterable of 2-tuples
-#assert type(TMAP)
-
-#a = [t2 for t2 in TMAP]
-#print(a)
-
-#dt_fields = np.dtype(a) # field_shape is variable and excluded
-#field_shape = (12 * [1] ).append()
-# Consider using 'name:' as field
-
+# TODO WARNING Notice the error of the header for coordinates and colors
 
 # TODO setup converters
 # Setup Converters
 # converters : variable, optional
 # Example converters = {3: lambda s: float(s or 0)}.
 
-a = inspect.stack()[0][1]
-print(a)
-current_dir = path.dirname(a)
-#os.path.dirname(ascribe.__file__)
+print(60 * '=')
+curdir = inspect.stack()[0][1]
+current_dir = path.dirname(curdir)
+print('Current directory is ' + current_dir)
+
 name = 'ewabre_py_2016-05-16 13-41-12.756000.log'
+
 filename = path.join(current_dir, 'data', name)
+
 file_data = np.genfromtxt(
 	filename,
-	dtype = None,#dt_fields DEPRECATE
+	dtype = None,
 	names = True,
 	delimiter = ',',
 	missing_values = (999999),
-	usecols = (1,2,4,5,6,7,8,9,10) # TODO Ignore stimulus data
+	usecols = (1,2,4,5,6,7,8,9,10) # TODO Ignoring stimulus data for now
 )
 
-# Print the first 12 rows
-print(file_data[0:12])
+d = file_data.ndim
+file_data = np.reshape(file_data,(file_data.size, 1))
 
+print('Dim reshaped from {} to {}'.format(d, file_data.ndim))
+
+print('File Preview: ')
+# Print the first 4 rows
+#print(file_data[0:4])
+print(60 * '-')
+# Remove illegal responses
+l = len(file_data)
+file_data = file_data[file_data['RT'] < 7000]
+#print(file_data)
+print('Missing Values Removed: {}'.format(l - len(file_data)))
+#print(file_data[0:4])
+print(60 * '^')
+
+# Compute Signal Detection Theory (SDT) measures
+print('Level: Subject')
+r = file_data['Response']
+print('{} responses'.format(len(r)))
+hit = len(r[r == b'HIT'])
+miss = len(r[r == b'MISS'])
+fa = len(r[r == b'FA'])
+cr = len(r[r == b'CR'])
+total = hit + miss + fa + cr
+assert len(r) == total
+
+print('Total Valid Trials {}'.format(total))
+hitrate = 100 * hit / total
+farate = 100 * fa / total
+print('Hits: {}\nMisses: {}\nFalse Alarms: {}\nCorrect Responses: {}'.format(hit,miss,fa,cr))
+
+# Rounding
+decimals = 2
+
+print('Hit{2}: {0}%\nFalse Alarm{2}: {1}%\n[of valid responses]'.format(round(hitrate, decimals),round(farate, decimals),'rate'))
+
+print('Level: Per Item in Subject')
+print('Items: {}'.format(items))
+
+#  Compute Cowan's K for all items
+ 
+file_data = pd.DataFrame(file_data)
+
+#print(file_data)
+
+'''TODO Groupby Subject ID... Accumulate'''
+counts = file_data.groupby('Items').aggregate(sum)
+counts
+
+
+
+
+# item_mask = [file_data['Items' == i] for i in items]
+# hit_mask = file_data['Response' == b'HIT']
+# fa_mask = file_data['Response' == b'FA']
+
+# k = 0
+
+# for im in item_mask:
+# 	k += 1
+# 	hi = len(file_data[item_mask[im]][hit_mask])
+# 	fai = len(file_data[item_mask[im]][fa_mask])
+# 	totali = sum(item_mask[im])
+# 	k_Cowans[k] = [i * ((hi - fai) / totali)]
+
+# print([len(items) * '{}'].format(*tuple(k_Cowans)))
+
+
+#for a in np.nditer(file_data, op_flags=['readwrite']):
+#	 b[...] = ma.masked_equal(b, 999999)
+#file_data[0].mask
+
+# listwise exclusion
+#file_data_compressed = ma.compress_rows(file_data)
+
+#file_data.data[-file_data.mask]
+
+#  Remove the mask
+#file_data = file_data.data[-file_data.mask]
+
+
+#print('Masked File Preview - Missing Values Excluded: ')
+# Print the first 2 rows
+#print(file_data[0:4]) #. WARNING indexing may refer to outside the soft mask
+
+
+'''for x, y in np.nditer([a,b]):'''
 # Print using Name
-print(file_data['Trial'])
+#print(file_data['Trial'])
 
-# Back to the drawing board! :)
 
 
 #zip('name', header)
-
-
 
 
 # TODO ID needs to be iterated for each file. Postpone
