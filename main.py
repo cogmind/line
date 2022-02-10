@@ -1,5 +1,5 @@
 '''
-Verfasser: Carina Rose, Daniel Labbe
+Verfasser: Daniel Labbe
 Datum: 2018-05-22
 
 Analyze der Behavorialen Daten
